@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verificador ILET</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f6f7fb;margin:0;padding:20px}
+  .card{max-width:760px;margin:30px auto;background:#fff;padding:22px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+  h1{margin:0 0 12px}
+  .row{margin:10px 0}
+  .label{font-weight:700;color:#444}
+  .value{margin-left:8px;color:#111}
+  .err{color:#c62828}
+  .small{font-size:13px;color:#666}
+  #qrReader{max-width:360px;margin:14px auto}
+  .btn{display:inline-block;padding:10px 14px;background:#1976d2;color:#fff;border-radius:8px;text-decoration:none}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Verificador • ILET</h1>
+    <p class="small">Escanee el QR o agregue <code>?folio=2025-...</code> a la URL.</p>
+
+    <div id="content">
+      <div id="loading">Cargando…</div>
+    </div>
+
+    <div id="qrReader" style="display:none;">
+      <div id="reader"></div>
+      <div style="text-align:center;margin-top:10px;">
+        <a class="btn" id="stopBtn" href="#" style="display:none;">Detener lector</a>
+      </div>
+    </div>
+  </div>
+
+<!-- Librería QR opcional (se usa solo si quieres lector integrado) -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+(async function(){
+  const params = new URLSearchParams(location.search);
+  const folio = params.get('folio');
+  const content = document.getElementById('content');
+
+  if(!folio){
+    content.innerHTML = '<p class="err">No se recibió folio. Escanea el QR o escribe <code>?folio=2025-...</code> en la URL.</p>'
+      + '<p style="text-align:center;margin-top:12px;"><a href="#" id="openScanner" class="btn">Abrir lector QR</a></p>';
+    document.getElementById('openScanner').addEventListener('click', openScanner);
+    return;
+  }
+
+  content.innerHTML = '<div id="loading">Consultando folio <strong>'+folio+'</strong>…</div>';
+
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxu_Zx2hK1cWzaHR3b2xssh5kIWOl6zBi49N_NGjpZpZ7cKkyldHyK6W46bIhHx9c58/exec';
+
+  try {
+    const res = await fetch(WEBAPP_URL + '?folio=' + encodeURIComponent(folio));
+    const data = await res.json();
+
+    if(!data || data.error){
+      content.innerHTML = '<p class="err">Folio no encontrado.</p>';
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="row"><span class="label">Folio:</span><span class="value">${data.folio||''}</span></div>
+      <div class="row"><span class="label">Nombre:</span><span class="value">${data.nombre||''}</span></div>
+      <div class="row"><span class="label">Programa:</span><span class="value">${data.programa||''}</span></div>
+      <div class="row"><span class="label">Fecha emisión:</span><span class="value">${data.fecha_emision||''}</span></div>
+      <div class="row"><span class="label">Libro / Foja:</span><span class="value">${data.libro||''} / ${data.foja||''}</span></div>
+      <div class="row"><span class="label">Estatus:</span><span class="value">${data.estatus||''}</span></div>
+    `;
+  } catch(err){
+    content.innerHTML = '<p class="err">Error al consultar. Revisa la consola del navegador.</p>';
+    console.error(err);
+  }
+
+  // ---------- lector QR (opc)
+  let html5QrCode = null;
+  function openScanner(e){
+    e && e.preventDefault();
+    document.getElementById('qrReader').style.display = 'block';
+    document.getElementById('openScanner').style.display = 'none';
+    html5QrCode = new Html5Qrcode("reader");
+    Html5Qrcode.getCameras().then(devices => {
+      if(devices && devices.length){
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
+            // si es URL con folio, redirige
+            try {
+              if(decodedText.includes('folio=')) {
+                window.location.href = decodedText;
+                return;
+              }
+            } catch(e){}
+            alert('QR leído: ' + decodedText);
+          }
+        ).catch(err => { console.error(err); alert('No se pudo iniciar la cámara.')});
+        document.getElementById('stopBtn').style.display = 'inline-block';
+        document.getElementById('stopBtn').addEventListener('click', function(ev){ ev.preventDefault(); html5QrCode.stop(); this.style.display='none'; });
+      } else {
+        alert('No se detectó cámara.');
+      }
+    }).catch(err => { console.error(err); alert('Error al obtener cámaras'); });
+  }
+})();
+</script>
+</body>
+</html>

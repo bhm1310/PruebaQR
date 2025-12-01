@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <title>Lector QR ILET</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Librería para el escáner -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
 <style>
-<script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js"></script>
   body {
     font-family: Arial, sans-serif;
     padding: 20px;
@@ -22,33 +25,40 @@
   }
 </style>
 </head>
+
 <body>
 
 <h2>Escáner Oficial de Folios ILET</h2>
 <p>Enfoca el código QR para verificar tu folio.</p>
 
+<!-- Contenedor del lector -->
 <div id="reader"></div>
-<div id="resultado"></div>
 
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<!-- Resultado del QR -->
+<div id="resultado"></div>
 
 <script>
 function onScanSuccess(decodedText, decodedResult) {
+    // Mostrar texto leído
     document.getElementById("resultado").innerHTML =
       "QR detectado:<br>" + decodedText;
 
-    // Redirigir automáticamente al URL contenido en el QR
+    // Si es un link, redirige automáticamente
     if (decodedText.startsWith("http")) {
         window.location.href = decodedText;
     }
 }
 
+// Activar cámara y lector
 const html5QrCode = new Html5Qrcode("reader");
 html5QrCode.start(
-    { facingMode: "environment" },
+    { facingMode: "environment" },  // cámara trasera
     { fps: 10, qrbox: 250 },
     onScanSuccess
-);
+).catch(err => {
+    document.getElementById("resultado").innerHTML =
+      "Error al iniciar cámara: " + err;
+});
 </script>
 
 </body>
